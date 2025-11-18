@@ -1,0 +1,27 @@
+.vscode
+
+**/__pycache__
+
+*.log
+
+# bazel compile output
+bazel-*
+MODULE.bazel.lock
+
+# python build output
+chrono_graph/pypi_src/dist/
+chrono_graph/pypi_src/chrono_graph.egg-info/
+
+# generated config files
+chrono_graph/examples/storages/gcn/config.json
+chrono_graph/examples/storages/graphsage/config.json
+chrono_graph/examples/storages/pytest/config.json
+
+# local checkpoints
+chrono_graph/examples/storages/gcn/gcn_demo_checkpoints/
+chrono_graph/examples/storages/graphsage/graphsage_demo_checkpoints/
+chrono_graph/examples/storages/pytest/gnn_test_checkpoints/
+
+# model datasets
+chrono_graph/examples/models/gcn/data/
+chrono_graph/examples/models/graphsage/data/MovieLens/

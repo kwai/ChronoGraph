@@ -1,0 +1,5 @@
+import %workspace%/grpc_bazel.rc
+
+build --cxxopt='-std=c++17'
+build --copt=-DOPENSSL_NO_ASM --copt=-DBORINGSSL_DISABLE_AVX512
+build --copt=-Wno-sign-compare --copt=-Wattributes --copt=-Wno-trigraphs

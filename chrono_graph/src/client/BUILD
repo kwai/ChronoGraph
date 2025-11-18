@@ -1,0 +1,17 @@
+cc_library(name="client",
+           srcs=["rgraph_client.cc", "sharding_rgraph_client.cc"],
+           hdrs=["rgraph_client.h", "sharding_rgraph_client.h"],
+           deps=[
+               "@grpc//:grpc++",
+               "//base/common",
+               "//base/hash",
+               "//base/jansson",
+               "//base/random",
+               "//base/testing",
+               "//base/thread",
+               "//base/util",
+               "//chrono_graph/src/base:graph_base",
+               "//chrono_graph/src/proto:gnn_kv_service_cc_grpc",
+           ],
+           visibility = ["//chrono_graph/src/pybind:__pkg__"],
+           )

@@ -1,0 +1,9 @@
+{
+  "shard_num": 1,
+  "hosts": [
+    {
+      "host": "default",
+      "shard": 0
+    }
+  ]
+}

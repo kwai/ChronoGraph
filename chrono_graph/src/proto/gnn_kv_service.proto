@@ -1,0 +1,204 @@
+// Copyright (c) 2025 Kuaishou Technology
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+option java_package = "io.github.chrono_graph";
+
+package chrono_graph;
+
+enum ErrorCode {
+  UNKNOWN = 0;
+  OK = 1;
+  KEY_NOT_EXIST = 2;
+  RELATION_NAME_NOT_AVAILABLE = 3;
+  ARGS_ILLEGAL = 4;
+}
+
+message SamplingParam {
+  enum SamplingStrategy {
+    UNKNOWN = 0;
+    RANDOM = 1;
+    MOST_RECENT = 2;
+    LEAST_RECENT = 3;
+    EDGE_WEIGHT = 4;
+    TOPN_WEIGHT = 5;
+  }
+  SamplingStrategy strategy = 1;
+  int32 sampling_num = 2;
+  bool sampling_without_replacement = 3;
+  // Only sample from nodes whose timestamp within this range
+  uint32 max_timestamp_s = 4;
+  uint32 min_timestamp_s = 5;
+  // Only sample from nodes whose weight is above this value.
+  float min_weight_required = 6;
+}
+
+// Info for a src id.
+message NodeAttr {
+  uint64 id = 1;
+  int64 degree = 2;
+  bytes attr_info = 3;
+  int64 edge_num = 4;
+}
+
+// Info for an edge of a given src id. The src id is not in it.
+message EdgeInfo {
+  uint64 id = 1;
+  double weight = 2;
+  uint32 timestamp = 3;
+  bytes edge_attr = 4;
+}
+
+// Flatten structure for list of EdgeInfo.
+message EdgeList {
+  repeated uint64 node_id = 1;
+  repeated double edge_weight = 2;
+  repeated uint32 timestamp_s = 3;
+  repeated bytes edge_attrs = 4;
+  // The above are info about dest node. 
+  // This is attr of src node.
+  repeated NodeAttr node_attrs = 5;
+}
+
+enum InsertEdgeWeightAct {
+  UNKNOWN_ACT = 0;
+  ADD = 1;
+  REPLACE = 2;
+  MAX = 3;
+  AVG = 4;
+}
+
+// Flatten structure, all repeated fields should have the same length (or the field is empty).
+message BatchInsertRequest {
+  repeated uint64 src_ids = 1;
+  repeated uint64 dest_ids = 2;
+  bytes relation_name = 3;
+  // `attrs` belongs to **src_ids**
+  // It's size is 0 if no attr exist.
+  repeated bytes attrs = 4;
+  repeated float dest_weights = 5;
+  repeated uint32 dst_ts = 6;
+  InsertEdgeWeightAct iewa = 7;
+  // `edge_attrs` belongs to **dest_ids**
+  // It's size is 0 if no attr exist.
+  repeated bytes edge_attrs = 8;
+  // Whether update expire time.
+  repeated bool expire_ts_update_flags = 9;
+  // Use item's timestamp as the last modify time, or use physical time.
+  repeated bool use_item_ts_for_expires = 10;
+  // Deletion reuses this message. In this case, most of the above fields are not required.
+  bool is_delete = 11;
+}
+
+message BatchInsertResponse {
+  ErrorCode code = 1;
+}
+
+message SampleNeighborRequest {
+  bytes relation_name = 1;
+  SamplingParam sample_param = 2;
+  repeated uint64 node_id = 3;
+}
+
+message SampleNeighborResponse {
+  // Total length = node_id_size * sample_num (except `node_attrs`, whose length = node_id_size)
+  EdgeList edge_list = 1;
+  // Degrees of the src_ids
+  repeated int64 degree = 2;
+}
+
+message GetNodesAttrRequest {
+  repeated uint64 ids = 1;
+  bytes relation_name = 2;
+}
+
+message GetNodesAttrResponse {
+  ErrorCode code = 1;
+  repeated NodeAttr nodes = 2;
+}
+
+message GetNodeEdgesRequest {
+  // Length(src_ids) is either 1 or equal to Length(dest_ids)
+  repeated uint64 src_ids = 1;
+  repeated uint64 dest_ids = 2;
+  bytes relation_name = 3;
+}
+
+message GetNodeEdgesResponse {
+  ErrorCode code = 1;
+  repeated NodeAttr nodes = 2;
+  repeated EdgeInfo edges = 3;
+}
+
+message RandomSampleRequest {
+  int32 node_count = 1;
+  bytes relation_name = 2;
+  // Get node's side info
+  bool need_attr = 3;
+  // Custom sample pool name. Use global sample pool by default.
+  bytes pool_name = 4;
+}
+
+message RandomSampleResponse {
+  ErrorCode code = 1;
+  repeated uint64 ids = 2;
+  repeated NodeAttr nodes = 3;
+}
+
+message TraversalByPartRequest {
+  bytes relation_name = 1;
+  int64 part_id = 2;
+  int64 part_num = 3;
+}
+
+message TraversalByPartResponse {
+  ErrorCode code = 1;
+  repeated uint64 ids = 2;
+}
+
+message GetRelationNodeCountRequest {
+  bytes relation_name = 1;
+}
+
+message GetRelationNodeCountResponse {
+  ErrorCode code = 1;
+  int64 count = 2;
+}
+
+// BEGIN SIM(Search-based Interest Model) proto
+// These structures are not used in GNN.
+// The browsing history for users are also stored in KV storage. For each key, its value is a list of items
+message CommonItemRequest {
+  uint64 item_key = 1;
+  // default is 0, return all items,
+  // else return N newest items
+  uint32 max_resp_item_num = 2;
+}
+
+message CommonItemResponse {
+  uint64 item_key = 1;
+  // Return all items as flatten structure, each item has fixed length
+  // The returned bytes may have been compressed in a certain way
+  bytes flatten_items = 2;
+  ErrorCode code = 3;
+}
+// END sim proto
+
+service GNNKVService {
+  rpc BatchInsert(BatchInsertRequest) returns (BatchInsertResponse);
+
+  rpc BatchDelete(BatchInsertRequest) returns (BatchInsertResponse);
+
+  rpc RandomSample(RandomSampleRequest) returns (RandomSampleResponse);
+
+  rpc SampleNeighbor(SampleNeighborRequest) returns (SampleNeighborResponse);
+
+  rpc GetNodesAttr(GetNodesAttrRequest) returns (GetNodesAttrResponse);
+
+  rpc GetNodeEdges(GetNodeEdgesRequest) returns (GetNodeEdgesResponse);
+
+  rpc TraversalByPart(TraversalByPartRequest) returns (TraversalByPartResponse);
+
+  rpc GetRelationNodeCount(GetRelationNodeCountRequest) returns (GetRelationNodeCountResponse);
+}
