@@ -1,1 +1,1 @@
-../../../bazel-bin/open_gnn/src/pybind/libgnn_pybind.so
+../../../bazel-bin/chrono_graph/src/pybind/libgnn_pybind.so

@@ -36,6 +36,7 @@ echo -e "\nSleeping 30s to wait for gnn storage service ready ...\n"
 sleep 30
 
 cd "$model_dir"
+python3 "$model_dir"/data/download_dataset.py
 python3 "$model_dir"/train.py
 
 echo "Quitting gnn_storage_service (pid=$service_pid) ..."
