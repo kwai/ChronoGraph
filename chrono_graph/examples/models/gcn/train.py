@@ -11,11 +11,13 @@ from chrono_graph import graph
 import tqdm
 from torch_geometric.data import Data
 import os
+import time
 
 ALREADY_INITIALIZED = False
 
 
 class GCNSampler:
+
   def __init__(self,
                gnn_service: str,
                shard_num: int,
@@ -67,8 +69,8 @@ class GCNSampler:
     return self._reindex_and_build_data(edge_index)
 
   def _build_edge_index(self, src_tensor: torch.Tensor, neighbor_tensor: torch.Tensor):
-    sampler_out_row = src_tensor.repeat_interleave(self.fanouts)
-    sampler_out_col = neighbor_tensor
+    sampler_out_row = neighbor_tensor
+    sampler_out_col = src_tensor.repeat_interleave(self.fanouts)
 
     edge_index = torch.stack([sampler_out_row, sampler_out_col])
     return edge_index
@@ -134,6 +136,9 @@ sampler = GCNSampler(gnn_service="grpc_gnn_gcn_demo-A2A",
                      already_initialized=ALREADY_INITIALIZED)
 sampler.initialize_graph()
 train_loader = GCNDataLoader(sampler, num_iterations=10)
+
+print("\nSleeping 60s to wait for gnn storage service data ready ...\n")
+time.sleep(60)
 
 model = GCN(hidden_channels=16)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)

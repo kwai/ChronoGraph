@@ -5,15 +5,20 @@ import pandas as pd
 import os
 import torch
 
-raw_data_directory = './MovieLens/Small/raw'
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+data_zip_path = os.path.join(current_dir, 'ml-latest-small.zip')
+data_extracted_path = os.path.join(current_dir, 'ml-latest-small')
+
+raw_data_directory = os.path.join(current_dir, 'MovieLens/Small/raw')
 
 if not os.path.exists(raw_data_directory):
   url = 'https://files.grouplens.org/datasets/movielens/ml-latest-small.zip'
-  extract_zip(download_url(url, '.'), '.')
+  extract_zip(download_url(url, current_dir), current_dir)
 
   os.makedirs(raw_data_directory, exist_ok=True)
-  os.remove('./ml-latest-small.zip')
-  os.rename('./ml-latest-small', raw_data_directory)
+  os.remove(data_zip_path)
+  os.rename(data_extracted_path, raw_data_directory)
 
 movies_path = os.path.join(raw_data_directory, 'movies.csv')
 ratings_path = os.path.join(raw_data_directory, 'ratings.csv')
@@ -66,7 +71,7 @@ data = T.ToUndirected()(data)
 print(data)
 
 # Save the data object:
-processed_data_directory = './MovieLens/Small/processed'
+processed_data_directory = os.path.join(current_dir, 'MovieLens/Small/processed')
 data_path = os.path.join(processed_data_directory, 'data.pt')
 if not os.path.exists(processed_data_directory):
   print("Save data ...")
