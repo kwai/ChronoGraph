@@ -19,5 +19,5 @@ sh gcn/run.sh
 #### GraphSage
 
 ```bash
-sh graphasage/run.sh
+sh graphsage/run.sh
 ```

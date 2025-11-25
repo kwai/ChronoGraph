@@ -12,6 +12,7 @@ import tqdm
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 import os
+import time
 
 from chrono_graph import graph
 
@@ -25,7 +26,8 @@ class GraphSageSampler:
                shard_num: int,
                data: HeteroData,
                pred_type_to_relation: Tuple[Tuple, str],
-               node_type_to_relation: Dict[str, List[Tuple[Tuple, str]]],
+               all_relations: List[Tuple[Tuple, str]],
+               relation_pairs: Dict[str, str],
                fanouts: List[int],
                neg_sampling_num: int,
                batch_size: int,
@@ -40,7 +42,8 @@ class GraphSageSampler:
     self.num_neg = neg_sampling_num
     self.batch_size = batch_size
     self.pred_type_to_relation = pred_type_to_relation
-    self.node_type_to_relation = node_type_to_relation
+    self.all_relations = all_relations
+    self.relation_pairs = relation_pairs
     self.initialized = already_initialized
     self.data = data
 
@@ -48,14 +51,12 @@ class GraphSageSampler:
     """Init client and push data to server"""
 
     self.g = graph.Graph(self.gnn_service, self.shard_num)
-    for _, relation_list in self.node_type_to_relation.items():
-      for _, relation in relation_list:
-        self.g.add_client(relation)
+    for _, relation in self.all_relations:
+      self.g.add_client(relation)
     if self.initialized:
       return
-    for _, relation_list in self.node_type_to_relation.items():
-      for edge_type, relation in relation_list:
-        self._add_edges_to_graph(relation, self.data[edge_type].edge_index, batch_size)
+    for edge_type, relation in self.all_relations:
+      self._add_edges_to_graph(relation, self.data[edge_type].edge_index, batch_size)
     self.initialized = True
 
   def _add_edges_to_graph(self, relation: str, edge_index: torch.Tensor, batch_size: int = 10240):
@@ -68,13 +69,9 @@ class GraphSageSampler:
 
   def sample(self):
     src_node_type = self.pred_type_to_relation[0][0]
-    dst_node_type = self.pred_type_to_relation[0][2]
-    src_relation = self.pred_type_to_relation[1]
-
-    if len(self.node_type_to_relation.get(dst_node_type, [])) == 0:
-      raise ValueError(f"No relation found for node type {dst_node_type}")
-
-    dst_relation = self.node_type_to_relation[dst_node_type][0][1]
+    dst_node_type = self.pred_type_to_relation[0][-1]
+    src_relation = self.pred_type_to_relation[1][0]
+    dst_relation = self.pred_type_to_relation[1][-1]
 
     # Random sample nodes as src
     nodes = self.g.random_nodes(src_relation, "src_nodes").batch(self.batch_size) \
@@ -114,19 +111,21 @@ class GraphSageSampler:
       next_node_types = []
       next_nodes = []
       for index, node_t in enumerate(now_node_types):
-        if node_t not in self.node_type_to_relation:
-          continue
+        for edge_info, relation in self.all_relations:
+          if node_t != edge_info[-1]:
+            continue
 
-        for edge_info, relation in self.node_type_to_relation[node_t]:
+          # Use symmetrical relation to get src nodes
+          sample_relation = self.relation_pairs[relation]
 
-          neighbor_nodes = self.g.set_nodes(relation, now_nodes[index], "src_nodes") \
-              .sample_neighbor(relation, "neighbor_nodes").sample(fanout).by("random", "self", False) \
+          neighbor_nodes = self.g.set_nodes(sample_relation, now_nodes[index], "src_nodes") \
+              .sample_neighbor(sample_relation, "neighbor_nodes").sample(fanout).by("random", "self", False) \
               .emit()["neighbor_nodes"]["ids"]
 
-          edge_index_dict[edge_info][0].extend([element for element in now_nodes[index] for _ in range(fanout)])
-          edge_index_dict[edge_info][1].extend(neighbor_nodes)
+          edge_index_dict[edge_info][0].extend(neighbor_nodes)
+          edge_index_dict[edge_info][1].extend([element for element in now_nodes[index] for _ in range(fanout)])
 
-          next_node_types.append(edge_info[2])
+          next_node_types.append(edge_info[0])
           next_nodes.append(neighbor_nodes)
 
       now_node_types = next_node_types
@@ -246,10 +245,11 @@ sampler = GraphSageSampler(
     gnn_service="grpc_gnn_graphasage_demo-U2I-I2U",
     shard_num=1,
     data=train_data,
-    pred_type_to_relation=(("user", "rates", "movie"), "U2I"),
-    node_type_to_relation={
-        "user": [(("user", "rates", "movie"), "U2I")],
-        "movie": [(("movie", "rev_rates", "user"), "I2U")],
+    pred_type_to_relation=(("user", "rates", "movie"), ("U2I", "I2U")),  # U2I for sample user, I2U for sample movie
+    all_relations=[(("user", "rates", "movie"), "U2I"), (("movie", "rev_rates", "user"), "I2U")],
+    relation_pairs={
+        "U2I": "I2U",
+        "I2U": "U2I"
     },
     fanouts=[20, 10],
     neg_sampling_num=2,
@@ -259,6 +259,9 @@ sampler = GraphSageSampler(
 )
 sampler.initialize_graph()
 train_loader = GraphSageDataLoader(sampler, num_iterations=100)
+
+print("\nSleeping 60s to wait for gnn storage service data ready ...\n")
+time.sleep(60)
 
 
 class GNN(torch.nn.Module):
