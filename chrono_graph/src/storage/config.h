@@ -77,7 +77,7 @@ struct GraphStorageDBConfig {
   }
 
   bool need_edge_expire() const {
-    if (elst.compare("cdf") == 0 || elst.compare("simple") == 0) { return false; }
+    if (elst.compare("cdf") == 0) { return false; }
     if (edge_expire_interval_s == 0) return false;
     return true;
   }
