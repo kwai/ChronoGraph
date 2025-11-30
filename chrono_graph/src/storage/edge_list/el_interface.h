@@ -228,22 +228,10 @@ class EdgeListInterface {
   /*! \brief Delete edges by ids.
 
     \param edge_list Pointer to edge list after operation.
-    \param old_edge_list Pointer to edge list before operation.
     \param keys ids to be deleted.
     \return success or not.
    */
-  virtual bool DeleteItems(char *edge_list, char *old_edge_list, const std::vector<uint64> &keys) = 0;
-
-  /*!
-    \brief Should call when edge list is expired due to size expand.
-
-    There are 2 cases:
-    1. The edge list is really expired, and the data will be deleted.
-    2. The edge list is expanded, all data are transferred to another address, and the old one is expired.
-    In the 2nd case, we need to set a mark to distinguish them.
-  */
-  virtual void SetExpandMark(char *edge_list) const = 0;
-  virtual bool GetExpandMark(const char *edge_list) const = 0;
+  virtual bool DeleteItems(char *edge_list, const std::vector<uint64> &keys) = 0;
 
   /*!
     \brief Decay degree or weight of all edges.
@@ -261,7 +249,7 @@ class EdgeListInterface {
     \brief Check all edges and delete expired edges.
     \return Number of edges deleted.
   */
-  virtual int EdgeExpire(char *edge_list, char *old_edge_list, int expire_interval) const = 0;
+  virtual int EdgeExpire(char *edge_list, int expire_interval) const = 0;
 
   virtual void ListExpandSchema(std::vector<uint32_t> *schema) const = 0;
 

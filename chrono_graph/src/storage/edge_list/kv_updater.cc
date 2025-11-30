@@ -71,18 +71,9 @@ uint32 GraphKvUpdater::DeleteEdgeHandler(uint32 addr,
 
   const CommonUpdateItems *items = reinterpret_cast<const CommonUpdateItems *>(log);
   uint32 cur_addr = addr;
-  char *old_edge_list = cur_node->data();
-  // -1 means delete one edge
-  if (!edge_list_adaptor_->CanReuse(old_edge_list, -1)) {
-    MemKVAllocator allocator(mem_kv, relation_name_);
-    cur_node = InitKVData(&cur_addr, &allocator, 0, cur_node->data());
-    if (cur_node == nullptr) {
-      LOG(ERROR) << "failed to malloc node from pool, new addr:" << cur_addr;
-      return addr;
-    }
-  }
-  edge_list_adaptor_->DeleteItems(cur_node->data(), old_edge_list, items->ids);
-  if (edge_list_adaptor_->GetSize(cur_node->data()) == 0) {
+  char *edge_list = cur_node->data();
+  edge_list_adaptor_->DeleteItems(edge_list, items->ids);
+  if (edge_list_adaptor_->GetSize(edge_list) == 0) {
     // expire immediately
     cur_node->expire_timet = base::GetTimestamp() / base::Time::kMicrosecondsPerSecond;
   }
@@ -124,25 +115,12 @@ uint32 GraphKvUpdater::EdgeExpireHandler(
     uint32 addr, uint64 storage_key, int *delete_count, int expire_interval, base::MemKV *mem_kv) {
   base::KVData *cur_node = mem_kv->GetKVDataByAddr(addr);
   if (cur_node == nullptr) { return addr; }
-
-  uint32 cur_addr = addr;
-  char *old_edge_list = cur_node->data();
-  // only malloc in CPTreap buffered edge list
-  // Expire may cause edge deletion, so pass -1 to CanReuse
-  if (!edge_list_adaptor_->CanReuse(old_edge_list, -1)) {
-    MemKVAllocator allocator(mem_kv, relation_name_);
-    cur_node = InitKVData(&cur_addr, &allocator, 0, cur_node->data());
-    if (cur_node == nullptr) {
-      LOG(ERROR) << "failed to malloc node from pool, new addr:" << cur_addr;
-      return addr;
-    }
-  }
-  *delete_count += edge_list_adaptor_->EdgeExpire(cur_node->data(), old_edge_list, expire_interval);
+  *delete_count += edge_list_adaptor_->EdgeExpire(cur_node->data(), expire_interval);
   if (edge_list_adaptor_->GetSize(cur_node->data()) == 0) {
     // expire immediately
     cur_node->expire_timet = base::GetTimestamp() / base::Time::kMicrosecondsPerSecond;
   }
-  return cur_addr;
+  return addr;
 }
 
 }  // namespace chrono_graph

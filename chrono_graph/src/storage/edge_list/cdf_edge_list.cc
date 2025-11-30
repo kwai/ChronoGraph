@@ -197,7 +197,6 @@ void CDFAdaptor::Fill(char *edge_list, char *old_edge_list, const CommonUpdateIt
     edge_list_ptr->capacity = capacity;
     // reset start due to different capacities of new edge list and old edge list
     if (old_edge_list_ptr->size == 0) { edge_list_ptr->start = edge_list_ptr->capacity - 1; }
-    SetExpandMark(old_edge_list);
   } else if (old_edge_list == nullptr) {
     // new allocated
     CHECK(edge_list_ptr->capacity >= items.ids.size() ||

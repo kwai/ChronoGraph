@@ -128,11 +128,11 @@ float FlattenWeightSampleCache::CalcItemWeight(GraphNode item_info) {
     LOG(ERROR) << "Sample from unexist relation: " << item_info.relation_name;
     return 1.0;
   }
-  auto item_data = db_->Dbs().at(item_info.relation_name)->Get(item_info.node_id);
+  auto expire_time = db_->GetNodeExpireTime(item_info);
   // exclude items that are about to expire.
   auto min_expire_time = base::GetTimestamp() / base::Time::kMicrosecondsPerSecond +
                          absl::GetFlag(FLAGS_double_buffer_switch_interval_s);
-  return (item_data.expire_timet == 0 || item_data.expire_timet > min_expire_time) ? 1 : 0;
+  return expire_time > min_expire_time ? 1 : 0;
 }
 
 float DegreeBaseSampleCache::CalcItemWeight(GraphNode item_info) { return db_->GetNodeDegree(item_info); }
