@@ -28,7 +28,6 @@
 
 ABSL_DECLARE_FLAG(int32, cpt_dynamic_growth_base);
 ABSL_DECLARE_FLAG(double, cpt_dynamic_growth_factor);
-ABSL_DECLARE_FLAG(int32, cpt_edge_buffer_capacity);
 ABSL_DECLARE_FLAG(double, cpt_weight_max);
 ABSL_DECLARE_FLAG(double, cpt_weight_min);
 
@@ -45,8 +44,6 @@ struct CPTreapEdgeListMetaBase {
   // Maintain a linked list of nodes sorted by timestamp.
   offsetT time_head;
   offsetT time_tail;
-  offsetT buffer_size;  // Pending edge list size, -1 means no buffer memory allocated.
-                        // Never use buffer_size < 0 to discriminate since buffer_size is unsigned
 
   offsetT weight_head() const {
     NOT_REACHED();
@@ -277,19 +274,12 @@ struct CPTreapEdgeList : public EdgeListMeta {
 
   static int MemorySize(BlockStorageApi *attr_op,
                         BlockStorageApi *edge_attr_op,
-                        int capacity,
-                        bool buffered = false) {
+                        int capacity) {
     CHECK(attr_op && edge_attr_op) << "attr_op and edge_attr_op must be given!";
     int res = sizeof(CPTreapEdgeList) + attr_op->MaxSize() +
               capacity * (sizeof(CPTreapItem) + edge_attr_op->MaxSize());
-    if (buffered) {
-      CHECK_GT(absl::GetFlag(FLAGS_cpt_edge_buffer_capacity), 0);
-      res += absl::GetFlag(FLAGS_cpt_edge_buffer_capacity) * (sizeof(PendingEdge) + edge_attr_op->MaxSize());
-    }
     return res;
   }
-
-  bool BatchMergeEnabled() const { return meta.buffer_size != (offsetT)-1; }
 
   // return allocated offset, with initialize
   offsetT AllocateNode() {
@@ -321,24 +311,13 @@ struct CPTreapEdgeList : public EdgeListMeta {
 
   void Initialize(BlockStorageApi *attr_op,
                   BlockStorageApi *edge_attr_op,
-                  uint32_t cap,
-                  bool buffered = false) {
+                  uint32_t cap) {
     CHECK_GT(cap, 0) << "LoopList init fail, cap less than 1, cap = " << cap;
     EdgeListMeta::Initialize(attr_op, edge_attr_op, cap);
     meta.size = 0;
     meta.root = CPTreapItem::invalid_offset;
-    // -1 indicates no buffer
-    meta.buffer_size = -1;
     attr_op->InitialBlock(attr_block(), attr_op->MaxSize());
     memset(reinterpret_cast<void *>(items()), 0, capacity * item_size());
-    if (buffered) {
-      CHECK_GT(absl::GetFlag(FLAGS_cpt_edge_buffer_capacity), 0);
-      // actually, memset is not really required
-      memset(reinterpret_cast<void *>(edges()),
-             0,
-             absl::GetFlag(FLAGS_cpt_edge_buffer_capacity) * pending_edge_size());
-      meta.buffer_size = 0;
-    }
   }
 
   bool Add(const std::vector<uint64> &ids,
@@ -718,19 +697,7 @@ class CPTreapAdaptor final : public EdgeListInterface {
 
   size_t GetMemorySize(int capacity = -1) const override {
     if (capacity == -1) { capacity = absl::GetFlag(FLAGS_cpt_dynamic_growth_base); }
-    // the last uint64 is checksum
-    return EdgeListType::MemorySize(this->attr_op_, this->edge_attr_op_, capacity, false) + sizeof(uint64);
-  }
-
-  // return buffered cpt edge list memory size which is a const
-  size_t GetBufferedEdgeListMemorySize() const {
-    return EdgeListType::MemorySize(this->attr_op_, this->edge_attr_op_, config_.edge_capacity_max_num, true);
-  }
-
-  // return cpt core memory size, no checksum or pending edges
-  size_t GetCoreMemorySize(int capacity) const {
-    if (capacity == -1) { capacity = absl::GetFlag(FLAGS_cpt_dynamic_growth_base); }
-    return EdgeListType::MemorySize(this->attr_op_, this->edge_attr_op_, capacity, false);
+    return EdgeListType::MemorySize(this->attr_op_, this->edge_attr_op_, capacity);
   }
 
   base::KVData *InitBlock(MemAllocator *mem_allocator,
@@ -742,7 +709,7 @@ class CPTreapAdaptor final : public EdgeListInterface {
 
   void FillRaw(char *edge_list, int slab_size, const CommonUpdateItems &items) override {
     auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    edge_list_ptr->Initialize(this->attr_op_, this->edge_attr_op_, slab_size, false);
+    edge_list_ptr->Initialize(this->attr_op_, this->edge_attr_op_, slab_size);
     if (!items.attr_update_info.empty()) {
       this->attr_op_->UpdateBlock(
           edge_list_ptr->attr_block(), items.attr_update_info.c_str(), items.attr_update_info.size());
@@ -754,66 +721,27 @@ class CPTreapAdaptor final : public EdgeListInterface {
                        items.iewa,
                        items.id_attr_update_infos,
                        edge_attr_op_);
-    SetCheckSumIfNeed(edge_list);
-  }
-
-  uint64 CalcCheckSum(const char *edge_list) const {
-    auto edge_list_ptr = reinterpret_cast<const EdgeListType *>(edge_list);
-    // no checksum in buffered edge list
-    CHECK(!edge_list_ptr->BatchMergeEnabled());
-    return base::CityHash64(edge_list, GetCoreMemorySize(edge_list_ptr->meta.size));
-  }
-
-  uint64 GetCheckSum(const char *edge_list) const {
-    auto edge_list_ptr = reinterpret_cast<const EdgeListType *>(edge_list);
-    // no checksum in buffered edge list
-    CHECK(!edge_list_ptr->BatchMergeEnabled());
-    auto checksum_ptr =
-        reinterpret_cast<const uint64 *>(edge_list + GetCoreMemorySize(edge_list_ptr->capacity));
-    return *checksum_ptr;
-  }
-
-  void SetCheckSumIfNeed(char *edge_list) const {
-    auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    // no checksum in buffered edge list
-    if (edge_list_ptr->BatchMergeEnabled()) { return; }
-    // checksum is the last 4bytes
-    auto checksum = reinterpret_cast<uint64 *>(edge_list + GetCoreMemorySize(edge_list_ptr->capacity));
-    // checksum is calculated from really used mem
-    *checksum = CalcCheckSum(edge_list);
   }
 
   bool CanReuse(const char *edge_list, int appending_size) const override {
     auto edge_list_ptr = reinterpret_cast<const EdgeListType *>(edge_list);
-    if (!edge_list_ptr->BatchMergeEnabled()) {
-      if (appending_size < 0) { return true; }
-      if (edge_list_ptr->CanTake(appending_size)) { return true; }
-      // grow up
-      if (edge_list_ptr->capacity < config_.edge_capacity_max_num) { return false; }
-      // FLAGS_cpt_edge_buffer_capacity <= 0 means batch merge is disabled
-      if (absl::GetFlag(FLAGS_cpt_edge_buffer_capacity) <= 0) { return true; }
-      // batch merge will be turned on
-      return false;
-    }
-
     if (appending_size < 0) {
-      // deletion in buffered edge list need replace update
+      return true;
+    }
+    if (edge_list_ptr->CanTake(appending_size)) {
+      return true;
+    }
+    // grow up
+    if (edge_list_ptr->capacity < config_.edge_capacity_max_num) {
       return false;
     }
-    // buffer_size >= 0 means batch merge is already turned on
-    // batch merge is triggered, switch to replace update
-    if (edge_list_ptr->meta.buffer_size + appending_size > absl::GetFlag(FLAGS_cpt_edge_buffer_capacity)) {
-      return false;
-    }
-    // flush new edges to buffer
     return true;
   }
 
   void Clean(char *edge_list) const override {
     auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
     edge_list_ptr->Initialize(
-        this->attr_op_, this->edge_attr_op_, edge_list_ptr->capacity, edge_list_ptr->BatchMergeEnabled());
-    SetCheckSumIfNeed(edge_list);
+        this->attr_op_, this->edge_attr_op_, edge_list_ptr->capacity);
   };
 
   bool GetEdgeListInfo(const char *edge_list,
@@ -832,9 +760,6 @@ class CPTreapAdaptor final : public EdgeListInterface {
                      (uint32_t)(len * absl::GetFlag(FLAGS_cpt_dynamic_growth_factor)));
       // Make sure `len` keeps growing in each loop to avoid infinite loop.
       len += (old_len == len);
-    }
-    if (absl::GetFlag(FLAGS_cpt_edge_buffer_capacity) > 0) {
-      schema->push_back(GetBufferedEdgeListMemorySize());
     }
     CHECK_GT(schema->size(), 0) << "list expand schema get empty, check your capacity config.";
   }
@@ -878,14 +803,9 @@ class CPTreapAdaptor final : public EdgeListInterface {
     return true;
   }
 
-  bool DeleteItems(char *edge_list, char *old_edge_list, const std::vector<uint64> &keys) override {
+  bool DeleteItems(char *edge_list, const std::vector<uint64> &keys) override {
     auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    if (old_edge_list != edge_list) {
-      InitFromAnotherBufferedEdgeList(edge_list, old_edge_list);
-      SetExpandMark(old_edge_list);
-    }
     for (auto key : keys) { edge_list_ptr->DeleteById(key); }
-    SetCheckSumIfNeed(edge_list);
     return true;
   };
 
@@ -895,67 +815,20 @@ class CPTreapAdaptor final : public EdgeListInterface {
                 float weight_decay_ratio,
                 float delete_threshold_weight) const override {
     auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    if (old_edge_list != edge_list && old_edge_list != nullptr) {
-      InitFromAnotherBufferedEdgeList(edge_list, old_edge_list);
-      SetExpandMark(old_edge_list);
-    }
     edge_list_ptr->out_degree = (uint64_t)(floor(edge_list_ptr->out_degree * degree_decay_ratio));
     int res = edge_list_ptr->DecayAllWeights(weight_decay_ratio, delete_threshold_weight);
-    SetCheckSumIfNeed(edge_list);
     return res;
   }
 
-  int EdgeExpire(char *edge_list, char *old_edge_list, int expire_interval) const override {
+  int EdgeExpire(char *edge_list, int expire_interval) const override {
     auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    if (old_edge_list != edge_list && old_edge_list != nullptr) {
-      InitFromAnotherBufferedEdgeList(edge_list, old_edge_list);
-      SetExpandMark(old_edge_list);
-    }
     int res = edge_list_ptr->CheckAllTimestamps(expire_interval);
-    SetCheckSumIfNeed(edge_list);
     return res;
   }
 
   std::string AttrInfo(const char *edge_list) const override {
     auto edge_list_ptr = reinterpret_cast<const EdgeListType *>(edge_list);
     return this->attr_op_->SerializeBlock(edge_list_ptr->attr_block());
-  }
-
-  void SetExpandMark(char *edge_list) const override {
-    auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    edge_list_ptr->expand_mark = true;
-    SetCheckSumIfNeed(edge_list);
-  }
-
-  bool GetExpandMark(const char *edge_list) const override {
-    auto edge_list_ptr = reinterpret_cast<const EdgeListType *>(edge_list);
-    return edge_list_ptr->expand_mark;
-  }
-
- private:
-  void InitFromAnotherBufferedEdgeList(char *edge_list, const char *old_edge_list) const {
-    CHECK(edge_list != nullptr);
-    CHECK(old_edge_list != nullptr);
-    CHECK_NE(edge_list, old_edge_list);
-    auto edge_list_ptr = reinterpret_cast<EdgeListType *>(edge_list);
-    auto old_edge_list_ptr = reinterpret_cast<const EdgeListType *>(old_edge_list);
-    CHECK(edge_list_ptr->BatchMergeEnabled());
-    CHECK(old_edge_list_ptr->BatchMergeEnabled());
-    memcpy(edge_list_ptr, old_edge_list, GetCoreMemorySize(old_edge_list_ptr->meta.size));
-    // reset buffer_size since all pending edges will be merged now
-    edge_list_ptr->meta.buffer_size = 0;
-    // merge buffered edges first
-    for (size_t i = 0; i < old_edge_list_ptr->meta.buffer_size; ++i) {
-      const PendingEdge *edge = old_edge_list_ptr->edges(i);
-      std::string edge_attr(edge_list_ptr->attr_of_pending_edge(edge), edge_attr_op_->MaxSize());
-      edge_list_ptr->Add(edge->id,
-                         edge->weight,
-                         config_.oversize_replace_strategy,
-                         edge->timestamp,
-                         edge->iewa,
-                         edge_attr,
-                         edge_attr_op_);
-    }
   }
 };
 }  // namespace chrono_graph

@@ -14,10 +14,5 @@ ABSL_FLAG(double, cpt_dynamic_growth_factor, 2, "Expand factor when length excee
  */
 ABSL_FLAG(double, cpt_weight_max, 1000, "Insert weight must be smaller than this");
 ABSL_FLAG(double, cpt_weight_min, 0.001, "Insert weight must be larger than this");
-ABSL_FLAG(int32,
-          cpt_edge_buffer_capacity,
-          -1,
-          "pending edge buffer capacity, -1 means disable buffer update"
-          "max capacity limit is 65534(UINT16_MAX - 1)");
 
 namespace chrono_graph {}  // namespace chrono_graph

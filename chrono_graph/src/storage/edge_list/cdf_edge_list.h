@@ -318,7 +318,7 @@ class CDFAdaptor final : public EdgeListInterface {
     return false;
   }
 
-  bool DeleteItems(char *edge_list, char *old_edge_list, const std::vector<uint64> &keys) override {
+  bool DeleteItems(char *edge_list, const std::vector<uint64> &keys) override {
     LOG_EVERY_N_SEC(WARNING, 60) << "cdf edge list not support delete items";
     return false;
   };
@@ -334,7 +334,7 @@ class CDFAdaptor final : public EdgeListInterface {
     return edge_list_ptr->DecayAllWeights(weight_decay_ratio);
   }
 
-  int EdgeExpire(char *edge_list, char *old_edge_list, int expire_interval) const override {
+  int EdgeExpire(char *edge_list, int expire_interval) const override {
     LOG_EVERY_N_SEC(WARNING, 60) << "cdf edge list doesn't support edge expire.";
     return 0;
   }
@@ -342,15 +342,6 @@ class CDFAdaptor final : public EdgeListInterface {
   std::string AttrInfo(const char *edge_list) const override {
     auto edge_list_ptr = reinterpret_cast<const CDFEdgeList *>(edge_list);
     return this->attr_op_->SerializeBlock(edge_list_ptr->attr_block());
-  }
-
-  void SetExpandMark(char *edge_list) const override {
-    auto edge_list_ptr = reinterpret_cast<CDFEdgeList *>(edge_list);
-    edge_list_ptr->expand_mark = true;
-  }
-  bool GetExpandMark(const char *edge_list) const override {
-    auto edge_list_ptr = reinterpret_cast<const CDFEdgeList *>(edge_list);
-    return edge_list_ptr->expand_mark;
   }
 
  private:

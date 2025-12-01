@@ -16,14 +16,16 @@ void CPTreapEdgeList<CPTreapItem>::TimeRemoveNode(CPTreapItem *node, offsetT off
     auto time_next_node = items(node->next_offset());
     time_next_node->set_prev_offset(node->prev_offset());
   }
-  if (meta.time_head == offset) { meta.time_head = node->next_offset(); }
-  if (meta.time_tail == offset) { meta.time_tail = node->prev_offset(); }
+  if (meta.time_head == offset) {
+    meta.time_head = node->next_offset();
+  }
+  if (meta.time_tail == offset) {
+    meta.time_tail = node->prev_offset();
+  }
 }
 
 template <typename CPTreapItem>
-void CPTreapEdgeList<CPTreapItem>::TimeAddNode(CPTreapItem *node,
-                                               uint32_t timestamp_s,
-                                               offsetT node_offset,
+void CPTreapEdgeList<CPTreapItem>::TimeAddNode(CPTreapItem *node, uint32_t timestamp_s, offsetT node_offset,
                                                offsetT insert_offset) {
   CHECK(IsTimeIndexed());
   offsetT cursor = insert_offset;
@@ -61,8 +63,7 @@ void CPTreapEdgeList<CPTreapItem>::TimeAddNode(CPTreapItem *node,
 }
 
 template <typename CPTreapItem>
-void CPTreapEdgeList<CPTreapItem>::FindTsOffset(uint32 timestamp_s,
-                                                offsetT cur_node_offset,
+void CPTreapEdgeList<CPTreapItem>::FindTsOffset(uint32 timestamp_s, offsetT cur_node_offset,
                                                 offsetT *cursor) {
   CHECK(IsTimeIndexed());
   if (items(meta.time_tail)->timestamp_s() <= timestamp_s) {
@@ -75,14 +76,20 @@ void CPTreapEdgeList<CPTreapItem>::FindTsOffset(uint32 timestamp_s,
   uint32 cur_diff = UINT_MAX;
   for (size_t i = 0; i < meta.size; i += step) {
     // current node is not in time index list
-    if (i == cur_node_offset) { continue; }
+    if (i == cur_node_offset) {
+      continue;
+    }
     int diff = items(i)->timestamp_s() - timestamp_s;
-    if (diff < 0) { continue; }
+    if (diff < 0) {
+      continue;
+    }
     if (diff < cur_diff) {
       cur_diff = diff;
       start = i;
     }
-    if (diff == 0) { break; }
+    if (diff == 0) {
+      break;
+    }
   }
   *cursor = start;
   int count = 0;
@@ -113,15 +120,21 @@ void CPTreapEdgeList<CPTreapItem>::WeightRemoveNode(CPTreapItem *node, offsetT o
     auto weight_next_node = items(node->weight_next_offset());
     weight_next_node->set_weight_prev_offset(node->weight_prev_offset());
   }
-  if (meta.weight_head() == offset) { meta.set_weight_head(node->weight_next_offset()); }
-  if (meta.weight_tail() == offset) { meta.set_weight_tail(node->weight_prev_offset()); }
+  if (meta.weight_head() == offset) {
+    meta.set_weight_head(node->weight_next_offset());
+  }
+  if (meta.weight_tail() == offset) {
+    meta.set_weight_tail(node->weight_prev_offset());
+  }
 }
 
 template <typename CPTreapItem>
 void CPTreapEdgeList<CPTreapItem>::WeightAddNode(CPTreapItem *node, float weight, offsetT node_offset) {
   CHECK(IsWeightIndexed());
   offsetT cursor = meta.weight_tail();
-  if (meta.size > OPTIMIZE_SIZE_THRESHOLD) { FindWeightOffset(weight, node_offset, &cursor); }
+  if (meta.size > OPTIMIZE_SIZE_THRESHOLD) {
+    FindWeightOffset(weight, node_offset, &cursor);
+  }
   int count = 0;
   while (cursor != CPTreapItem::invalid_offset && this->weight(items(cursor)) > weight) {
     cursor = items(cursor)->weight_prev_offset();
@@ -165,14 +178,20 @@ void CPTreapEdgeList<CPTreapItem>::FindWeightOffset(float weight, offsetT cur_no
   float cur_diff = std::numeric_limits<float>::max();
   for (size_t i = 0; i < meta.size; i += step) {
     // current node is not in weight index list
-    if (i == cur_node_offset) { continue; }
+    if (i == cur_node_offset) {
+      continue;
+    }
     float diff = this->weight(items(i)) - weight;
-    if (diff < 0) { continue; }
+    if (diff < 0) {
+      continue;
+    }
     if (diff < cur_diff) {
       cur_diff = diff;
       start = i;
     }
-    if (diff == 0.0) { break; }
+    if (diff == 0.0) {
+      break;
+    }
   }
   *cursor = start;
   int count = 0;
@@ -187,7 +206,9 @@ int CPTreapEdgeList<CPTreapItem>::TimeRangeCountNode(uint32 start_ts, uint32 end
   CHECK(IsTimeIndexed());
   CHECK_LE(start_ts, end_ts);
   *cursor = meta.time_tail;
-  if (meta.size > OPTIMIZE_SIZE_THRESHOLD) { FindTsOffset(end_ts, -1, cursor); }
+  if (meta.size > OPTIMIZE_SIZE_THRESHOLD) {
+    FindTsOffset(end_ts, -1, cursor);
+  }
   int count = 0;
   while (*cursor != CPTreapItem::invalid_offset && items(*cursor)->timestamp_s() > end_ts) {
     *cursor = items(*cursor)->prev_offset();
@@ -209,11 +230,9 @@ int CPTreapEdgeList<CPTreapItem>::TimeRangeCountNode(uint32 start_ts, uint32 end
 }
 
 template <typename CPTreapItem>
-bool CPTreapEdgeList<CPTreapItem>::Add(const std::vector<uint64> &ids,
-                                       const std::vector<float> &weights,
+bool CPTreapEdgeList<CPTreapItem>::Add(const std::vector<uint64> &ids, const std::vector<float> &weights,
                                        EdgeListReplaceStrategy replace_type,
-                                       const std::vector<uint32_t> &timestamp_s,
-                                       InsertEdgeWeightAct iewa,
+                                       const std::vector<uint32_t> &timestamp_s, InsertEdgeWeightAct iewa,
                                        const std::vector<std::string> &id_attrs,
                                        BlockStorageApi *edge_attr_op) {
   if (meta.size > capacity) {
@@ -238,24 +257,16 @@ bool CPTreapEdgeList<CPTreapItem>::Add(const std::vector<uint64> &ids,
 
   thread_local base::PseudoRandom pr(base::RandomSeed());
   for (size_t i = 0; i < ids.size(); ++i) {
-    Add(ids[i],
-        (weights.empty() ? (0.1 + 0.9 * pr.GetDouble()) : weights[i]),
-        replace_type,
-        timestamp_s.empty() ? 0 : timestamp_s[i],
-        iewa,
-        id_attrs.empty() ? "" : id_attrs[i],
-        edge_attr_op);
+    Add(ids[i], (weights.empty() ? (0.1 + 0.9 * pr.GetDouble()) : weights[i]), replace_type,
+        timestamp_s.empty() ? 0 : timestamp_s[i], iewa, id_attrs.empty() ? "" : id_attrs[i], edge_attr_op);
   }
   return true;
 }
 
 template <typename CPTreapItem>
-bool CPTreapEdgeList<CPTreapItem>::Add(const uint64 id,
-                                       const float weight,
-                                       EdgeListReplaceStrategy replace_type,
-                                       const uint32 timestamp_s,
-                                       InsertEdgeWeightAct iewa,
-                                       const std::string &attr,
+bool CPTreapEdgeList<CPTreapItem>::Add(const uint64 id, const float weight,
+                                       EdgeListReplaceStrategy replace_type, const uint32 timestamp_s,
+                                       InsertEdgeWeightAct iewa, const std::string &attr,
                                        BlockStorageApi *edge_attr_op) {
   if (id == 0) {
     LOG_EVERY_N_SEC(WARNING, 5) << "insert id = 0, skip. weight = " << weight;
@@ -289,10 +300,14 @@ bool CPTreapEdgeList<CPTreapItem>::Add(const uint64 id,
     } else if (replace_type == EdgeListReplaceStrategy::RANDOM) {
       PopRandom();
     } else if (replace_type == EdgeListReplaceStrategy::LRU) {
-      if (!IsTimeIndexed()) { return false; }
+      if (!IsTimeIndexed()) {
+        return false;
+      }
       // discard the edge if it is older than current oldest edge
       uint32 oldest_ts = items(meta.time_head)->timestamp_s();
-      if (timestamp_s <= oldest_ts && oldest_ts > 0) { return true; }
+      if (timestamp_s <= oldest_ts && oldest_ts > 0) {
+        return true;
+      }
       PopOldest();
     } else if (replace_type == EdgeListReplaceStrategy::CANCEL) {
       return true;
@@ -307,11 +322,8 @@ bool CPTreapEdgeList<CPTreapItem>::Add(const uint64 id,
 }
 
 template <typename CPTreapItem>
-void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
-                                                      float weight,
-                                                      uint32 timestamp_s,
-                                                      InsertEdgeWeightAct iewa,
-                                                      const std::string &attr,
+void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id, float weight, uint32 timestamp_s,
+                                                      InsertEdgeWeightAct iewa, const std::string &attr,
                                                       BlockStorageApi *edge_attr_op) {
   if (meta.size == 0) {
     meta.root = AllocateNode();
@@ -328,7 +340,9 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
     new_node->cum_weight = weight;
     new_node->set_weight(weight);
     new_node->set_timestamp_s(timestamp_s);
-    if (!attr.empty()) { edge_attr_op->UpdateBlock(attr_of_item(new_node), attr.c_str(), attr.size()); }
+    if (!attr.empty()) {
+      edge_attr_op->UpdateBlock(attr_of_item(new_node), attr.c_str(), attr.size());
+    }
     PERF_SUM(1, GLOBAL_RELATION, P_EL, "edge_inserted");
     return;
   }
@@ -349,7 +363,9 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
     }
     CPTreapItem *node = items(cur_node_offset);
     if (node->id() == id) {
-      if (timestamp_s < node->timestamp_s()) { return; }
+      if (timestamp_s < node->timestamp_s()) {
+        return;
+      }
       // Need rotate after weight updated.
       float new_weight = 0.0;
       if (iewa == InsertEdgeWeightAct::ADD) {
@@ -391,7 +407,9 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
         return;
       }
 
-      if (!attr.empty()) { edge_attr_op->UpdateBlock(attr_of_item(node), attr.c_str(), attr.size()); }
+      if (!attr.empty()) {
+        edge_attr_op->UpdateBlock(attr_of_item(node), attr.c_str(), attr.size());
+      }
 
       node->set_timestamp_s(timestamp_s);
       if (meta.size > 1 && IsTimeIndexed()) {
@@ -417,12 +435,18 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
         new_node->set_weight(weight);
         new_node->set_father_offset(cur_node_offset);
         new_node->set_timestamp_s(timestamp_s);
-        if (!attr.empty()) { edge_attr_op->UpdateBlock(attr_of_item(new_node), attr.c_str(), attr.size()); }
+        if (!attr.empty()) {
+          edge_attr_op->UpdateBlock(attr_of_item(new_node), attr.c_str(), attr.size());
+        }
         // update weight list before topological change
-        if (IsWeightIndexed()) { WeightAddNode(new_node, weight, new_node_offset); }
+        if (IsWeightIndexed()) {
+          WeightAddNode(new_node, weight, new_node_offset);
+        }
         // toppological change
         node->right = new_node_offset;
-        if (IsTimeIndexed()) { TimeAddNode(new_node, timestamp_s, new_node_offset, insert_offset); }
+        if (IsTimeIndexed()) {
+          TimeAddNode(new_node, timestamp_s, new_node_offset, insert_offset);
+        }
         delta = weight;
         cur_node_offset = new_node_offset;
         PERF_SUM(1, GLOBAL_RELATION, P_EL, "edge_inserted");
@@ -442,12 +466,18 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
         new_node->set_weight(weight);
         new_node->set_father_offset(cur_node_offset);
         new_node->set_timestamp_s(timestamp_s);
-        if (!attr.empty()) { edge_attr_op->UpdateBlock(attr_of_item(new_node), attr.c_str(), attr.size()); }
+        if (!attr.empty()) {
+          edge_attr_op->UpdateBlock(attr_of_item(new_node), attr.c_str(), attr.size());
+        }
         // update weight list before topological change
-        if (IsWeightIndexed()) { WeightAddNode(new_node, weight, new_node_offset); }
+        if (IsWeightIndexed()) {
+          WeightAddNode(new_node, weight, new_node_offset);
+        }
         // toppological change
         node->left = new_node_offset;
-        if (IsTimeIndexed()) { TimeAddNode(new_node, timestamp_s, new_node_offset, insert_offset); }
+        if (IsTimeIndexed()) {
+          TimeAddNode(new_node, timestamp_s, new_node_offset, insert_offset);
+        }
         delta = weight;
         cur_node_offset = new_node_offset;
         PERF_SUM(1, GLOBAL_RELATION, P_EL, "edge_inserted");
@@ -461,7 +491,9 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
                             << ", edge list size: " << meta.size;
 
   // update root node or weight is not changed
-  if (offsets.size() == 0 || !weight_updated) { return; }
+  if (offsets.size() == 0 || !weight_updated) {
+    return;
+  }
 
   CHECK_EQ(offsets.size(), directions.size());
   CPTreapItem *node = items(cur_node_offset);
@@ -506,7 +538,9 @@ void CPTreapEdgeList<CPTreapItem>::PseudoRecursiveAdd(uint64_t id,
 
 template <typename CPTreapItem>
 void CPTreapEdgeList<CPTreapItem>::DeleteById(uint64_t id) {
-  if (meta.size == 0) { return; }
+  if (meta.size == 0) {
+    return;
+  }
 
   offsetT cur_node_offset = meta.root;
   offsetT target_offset = CPTreapItem::invalid_offset;
@@ -607,7 +641,9 @@ void CPTreapEdgeList<CPTreapItem>::DeleteById(uint64_t id) {
   }
 
   // not exist
-  if (target_offset == CPTreapItem::invalid_offset) { return; }
+  if (target_offset == CPTreapItem::invalid_offset) {
+    return;
+  }
 
   // adjust cum weight
   for (size_t i = 0; i < ancestor_offsets.size(); ++i) {
@@ -615,8 +651,12 @@ void CPTreapEdgeList<CPTreapItem>::DeleteById(uint64_t id) {
     node->cum_weight -= delta;
   }
 
-  if (IsTimeIndexed()) { TimeRemoveNode(items(target_offset), target_offset); }
-  if (IsWeightIndexed()) { WeightRemoveNode(items(target_offset), target_offset); }
+  if (IsTimeIndexed()) {
+    TimeRemoveNode(items(target_offset), target_offset);
+  }
+  if (IsWeightIndexed()) {
+    WeightRemoveNode(items(target_offset), target_offset);
+  }
   // RecycleNode must be last step
   RecycleNode(target_offset);
 }
@@ -625,13 +665,19 @@ template <typename CPTreapItem>
 bool CPTreapEdgeList<CPTreapItem>::Rotate(CPTreapItem *item, offsetT item_offset) {
   while (true) {
     // no son
-    if (item->is_leaf()) { break; }
+    if (item->is_leaf()) {
+      break;
+    }
     // one son
     if (item->has_one_son()) {
       if (item->has_left_son() && weight(item) > weight(items(item->left))) {
-        if (!RotateRight(item, item_offset)) { return false; }
+        if (!RotateRight(item, item_offset)) {
+          return false;
+        }
       } else if (item->has_right_son() && weight(item) > weight(items(item->right))) {
-        if (!RotateLeft(item, item_offset)) { return false; }
+        if (!RotateLeft(item, item_offset)) {
+          return false;
+        }
       } else {
         break;
       }
@@ -642,9 +688,13 @@ bool CPTreapEdgeList<CPTreapItem>::Rotate(CPTreapItem *item, offsetT item_offset
       // Smallest weight, no rotate needed.
       break;
     } else if (weight(items(item->left)) < weight(items(item->right))) {
-      if (!RotateRight(item, item_offset)) { return false; }
+      if (!RotateRight(item, item_offset)) {
+        return false;
+      }
     } else {
-      if (!RotateLeft(item, item_offset)) { return false; }
+      if (!RotateLeft(item, item_offset)) {
+        return false;
+      }
     }
   }
   return true;
@@ -763,8 +813,12 @@ void CPTreapEdgeList<CPTreapItem>::RecycleNode(offsetT offset) {
   } else {
     meta.root = offset;
   }
-  if (last_node->has_left_son()) { items(last_node->left)->set_father_offset(offset); }
-  if (last_node->has_right_son()) { items(last_node->right)->set_father_offset(offset); }
+  if (last_node->has_left_son()) {
+    items(last_node->left)->set_father_offset(offset);
+  }
+  if (last_node->has_right_son()) {
+    items(last_node->right)->set_father_offset(offset);
+  }
   // update time linked list
   if (IsTimeIndexed()) {
     if (last_node->prev_offset() != CPTreapItem::invalid_offset) {
@@ -775,8 +829,12 @@ void CPTreapEdgeList<CPTreapItem>::RecycleNode(offsetT offset) {
       auto time_next_node = items(last_node->next_offset());
       time_next_node->set_prev_offset(offset);
     }
-    if (meta.time_head == meta.size - 1) { meta.time_head = offset; }
-    if (meta.time_tail == meta.size - 1) { meta.time_tail = offset; }
+    if (meta.time_head == meta.size - 1) {
+      meta.time_head = offset;
+    }
+    if (meta.time_tail == meta.size - 1) {
+      meta.time_tail = offset;
+    }
   }
 
   // update weight linked list
@@ -789,8 +847,12 @@ void CPTreapEdgeList<CPTreapItem>::RecycleNode(offsetT offset) {
       auto weight_next_node = items(last_node->weight_next_offset());
       weight_next_node->set_weight_prev_offset(offset);
     }
-    if (meta.weight_head() == meta.size - 1) { meta.set_weight_head(offset); }
-    if (meta.weight_tail() == meta.size - 1) { meta.set_weight_tail(offset); }
+    if (meta.weight_head() == meta.size - 1) {
+      meta.set_weight_head(offset);
+    }
+    if (meta.weight_tail() == meta.size - 1) {
+      meta.set_weight_tail(offset);
+    }
   }
 
   meta.size--;
@@ -798,15 +860,21 @@ void CPTreapEdgeList<CPTreapItem>::RecycleNode(offsetT offset) {
 
 template <typename CPTreapItem>
 offsetT CPTreapEdgeList<CPTreapItem>::GetById(uint64_t id, CPTreapItem *result) const {
-  if (meta.size == 0) { return CPTreapItem::invalid_offset; }
+  if (meta.size == 0) {
+    return CPTreapItem::invalid_offset;
+  }
   offsetT offset = meta.root;
   auto node = items(meta.root);
   while (true) {
     if (id == node->id()) {
-      if (result) { *result = *node; }
+      if (result) {
+        *result = *node;
+      }
       return offset;
     }
-    if (node->is_leaf()) { return CPTreapItem::invalid_offset; }
+    if (node->is_leaf()) {
+      return CPTreapItem::invalid_offset;
+    }
     if (id > node->id()) {
       if (node->has_right_son()) {
         offset = node->right;
@@ -829,7 +897,9 @@ offsetT CPTreapEdgeList<CPTreapItem>::GetById(uint64_t id, CPTreapItem *result) 
 
 template <typename CPTreapItem>
 const CPTreapItem *CPTreapEdgeList<CPTreapItem>::SampleEdge() const {
-  if (meta.size == 0) { return nullptr; }
+  if (meta.size == 0) {
+    return nullptr;
+  }
   auto node = items(meta.root);
   thread_local base::PseudoRandom pr(base::RandomSeed());
   float random = pr.GetDouble() * node->cum_weight;
@@ -841,7 +911,9 @@ const CPTreapItem *CPTreapEdgeList<CPTreapItem>::SampleEdge() const {
 
   while (!node->is_leaf()) {
     float node_w = this->weight(node);
-    if (random <= node_w) { break; }
+    if (random <= node_w) {
+      break;
+    }
     random -= node_w;
     if (node->has_left_son()) {
       float left_son_weight_sum = items(node->left)->cum_weight;
@@ -864,7 +936,9 @@ const CPTreapItem *CPTreapEdgeList<CPTreapItem>::SampleEdge() const {
 
 template <typename CPTreapItem>
 bool CPTreapEdgeList<CPTreapItem>::IsValid() const {
-  if (meta.size == 0) { return true; }
+  if (meta.size == 0) {
+    return true;
+  }
 
   bool check_passed = false;
   base::Timer timer;
@@ -884,7 +958,9 @@ bool CPTreapEdgeList<CPTreapItem>::IsValid() const {
     }
   });
   auto root_ptr = items(meta.root);
-  if (!root_ptr->is_root()) { return false; }
+  if (!root_ptr->is_root()) {
+    return false;
+  }
   timer.AppendCostMs("step1");
 
   // step 2
@@ -942,7 +1018,9 @@ bool CPTreapEdgeList<CPTreapItem>::IsValid() const {
       }
     }
   }
-  if (!s2_pass) { return false; }
+  if (!s2_pass) {
+    return false;
+  }
   timer.AppendCostMs("step2");
 
   // step 3, check tree traverse.
@@ -953,22 +1031,36 @@ bool CPTreapEdgeList<CPTreapItem>::IsValid() const {
   while (!q.empty()) {
     auto offset = q.front();
     q.pop();
-    if (all_ids[offset]) { return false; }
+    if (all_ids[offset]) {
+      return false;
+    }
     all_ids[offset] = true;
     visited_node++;
-    if (items(offset)->has_left_son()) { q.emplace(items(offset)->left); }
-    if (items(offset)->has_right_son()) { q.emplace(items(offset)->right); }
+    if (items(offset)->has_left_son()) {
+      q.emplace(items(offset)->left);
+    }
+    if (items(offset)->has_right_son()) {
+      q.emplace(items(offset)->right);
+    }
   }
-  if (visited_node != meta.size) { return false; }
-  if (all_ids.size() != meta.size) { return false; }
+  if (visited_node != meta.size) {
+    return false;
+  }
+  if (all_ids.size() != meta.size) {
+    return false;
+  }
   timer.AppendCostMs("step3");
 
   auto s4_pass = IsTimeChainValid();
-  if (!s4_pass) { return false; }
+  if (!s4_pass) {
+    return false;
+  }
   timer.AppendCostMs("step4");
 
   auto s5_pass = IsWeightChainValid();
-  if (!s5_pass) { return false; }
+  if (!s5_pass) {
+    return false;
+  }
   timer.AppendCostMs("step5");
 
   check_passed = true;
@@ -976,12 +1068,9 @@ bool CPTreapEdgeList<CPTreapItem>::IsValid() const {
 }
 
 template <typename CPTreapItem>
-base::KVData *CPTreapAdaptor<CPTreapItem>::InitBlock(MemAllocator *mem_allocator,
-                                                     uint32_t *new_addr,
-                                                     int add_size,
-                                                     char *old_edge_list) const {
+base::KVData *CPTreapAdaptor<CPTreapItem>::InitBlock(MemAllocator *mem_allocator, uint32_t *new_addr,
+                                                     int add_size, char *old_edge_list) const {
   base::KVData *ptr = nullptr;
-  bool buffered = false;
   int new_size = add_size;
   EdgeListType *old_edge_list_ptr = nullptr;
   if (old_edge_list != nullptr) {
@@ -990,25 +1079,20 @@ base::KVData *CPTreapAdaptor<CPTreapItem>::InitBlock(MemAllocator *mem_allocator
   }
 
   int capacity = absl::GetFlag(FLAGS_cpt_dynamic_growth_base);
-  // this only happended in batch merge enabled case
-  if (old_edge_list_ptr != nullptr && old_edge_list_ptr->capacity == config_.edge_capacity_max_num) {
-    CHECK_GT(absl::GetFlag(FLAGS_cpt_edge_buffer_capacity), 0);
-    ptr = mem_allocator->New(GetBufferedEdgeListMemorySize(), new_addr);
-    capacity = config_.edge_capacity_max_num;
-    buffered = true;
-  } else {
-    while (new_size > capacity && capacity < config_.edge_capacity_max_num) {
-      // growing
-      float t = capacity * absl::GetFlag(FLAGS_cpt_dynamic_growth_factor);
-      capacity = ((int)t == capacity) ? capacity + 1 : (int)t;
-      capacity = std::min(config_.edge_capacity_max_num, capacity);
-    }
-    ptr = mem_allocator->New(GetMemorySize(capacity), new_addr);
-  }
 
-  if (ptr == nullptr) { return nullptr; }
+  while (new_size > capacity && capacity < config_.edge_capacity_max_num) {
+    // growing
+    float t = capacity * absl::GetFlag(FLAGS_cpt_dynamic_growth_factor);
+    capacity = ((int)t == capacity) ? capacity + 1 : (int)t;
+    capacity = std::min(config_.edge_capacity_max_num, capacity);
+  }
+  ptr = mem_allocator->New(GetMemorySize(capacity), new_addr);
+
+  if (ptr == nullptr) {
+    return nullptr;
+  }
   auto edge_list_ptr = reinterpret_cast<EdgeListType *>(ptr->data());
-  edge_list_ptr->Initialize(this->attr_op_, this->edge_attr_op_, capacity, buffered);
+  edge_list_ptr->Initialize(this->attr_op_, this->edge_attr_op_, capacity);
   return ptr;
 }
 
@@ -1020,24 +1104,19 @@ void CPTreapAdaptor<CPTreapItem>::Fill(char *edge_list, char *old_edge_list, con
     LOG_EVERY_N_SEC(INFO, 5) << "fill cost: " << timer.display() << ", size = " << edge_list_ptr->meta.size;
   });
 
-  if (old_edge_list != nullptr && items.overwrite) { this->Clean(old_edge_list); }
-
-  bool replace = false;
+  if (old_edge_list != nullptr && items.overwrite) {
+    this->Clean(old_edge_list);
+  }
   // Init from old_edge_list
   if (edge_list != old_edge_list && old_edge_list != nullptr) {
-    replace = true;
     auto old_edge_list_ptr = reinterpret_cast<EdgeListType *>(old_edge_list);
     int capacity = edge_list_ptr->capacity;
-    offsetT buffer_size = edge_list_ptr->meta.buffer_size;
     // check capacity is calculated correctly
     CHECK(capacity >= old_edge_list_ptr->meta.size + items.ids.size() ||
           capacity == config_.edge_capacity_max_num);
-    // no need to copy pending edges and checksum
-    memcpy(edge_list_ptr, old_edge_list, GetCoreMemorySize(old_edge_list_ptr->meta.size));
+    memcpy(edge_list_ptr, old_edge_list, GetMemorySize(old_edge_list_ptr->meta.size));
     // recover capacity, buffer_size
     edge_list_ptr->capacity = capacity;
-    edge_list_ptr->meta.buffer_size = buffer_size;
-    SetExpandMark(old_edge_list);
     timer.AppendCostMs("insert mem copy");
   } else if (old_edge_list == nullptr) {
     // new allocated
@@ -1048,94 +1127,34 @@ void CPTreapAdaptor<CPTreapItem>::Fill(char *edge_list, char *old_edge_list, con
     CHECK(CanReuse(edge_list, items.ids.size())) << "items id size: " << items.ids.size();
   }
 
-  // attr will always be updated immediately
-  // need redesign attr part later
+  // update attr block
   if (!items.attr_update_info.empty()) {
-    this->attr_op_->UpdateBlock(
-        edge_list_ptr->attr_block(), items.attr_update_info.c_str(), items.attr_update_info.size());
+    this->attr_op_->UpdateBlock(edge_list_ptr->attr_block(), items.attr_update_info.c_str(),
+                                items.attr_update_info.size());
   }
 
-  // batch merge enabled
-  if (edge_list_ptr->BatchMergeEnabled()) {
-    // batch merge triggered
-    if (replace) {
-      CHECK_EQ(edge_list_ptr->meta.buffer_size, 0);
-      // merge old edge list buffer first if have
-      auto old_edge_list_ptr = reinterpret_cast<EdgeListType *>(old_edge_list);
-      if (old_edge_list_ptr->BatchMergeEnabled()) {
-        for (size_t i = 0; i < old_edge_list_ptr->meta.buffer_size; ++i) {
-          const PendingEdge *edge = old_edge_list_ptr->edges(i);
-          std::string edge_attr(edge_list_ptr->attr_of_pending_edge(edge), edge_attr_op_->MaxSize());
-          edge_list_ptr->Add(edge->id,
-                             edge->weight,
-                             config_.oversize_replace_strategy,
-                             edge->timestamp,
-                             edge->iewa,
-                             edge_attr,
-                             edge_attr_op_);
-        }
-      }
-      // add new items
-      edge_list_ptr->Add(items.ids,
-                         items.id_weights,
-                         config_.oversize_replace_strategy,
-                         items.id_ts,
-                         items.iewa,
-                         items.id_attr_update_infos,
-                         edge_attr_op_);
-    } else {
-      // buffer new items
-      CHECK_LE(edge_list_ptr->meta.buffer_size + items.ids.size(),
-               absl::GetFlag(FLAGS_cpt_edge_buffer_capacity));
-      thread_local base::PseudoRandom pr(base::RandomSeed());
-      for (size_t i = 0; i < items.ids.size(); ++i) {
-        PendingEdge *edge = edge_list_ptr->edges(edge_list_ptr->meta.buffer_size);
-        edge_list_ptr->meta.buffer_size++;
-        edge->id = items.ids[i];
-        edge->weight = items.id_weights.empty() ? (0.1 + 0.9 * pr.GetDouble()) : items.id_weights[i];
-        edge->timestamp = items.id_ts.empty() ? 0 : items.id_ts[i];
-        edge->iewa = items.iewa;
-        if (!items.id_attr_update_infos.empty() && !items.id_attr_update_infos[i].empty()) {
-          if (items.id_attr_update_infos[i].size() != edge_attr_op_->MaxSize()) {
-            LOG_EVERY_N_SEC(ERROR, 5) << "input attr size: " << items.id_attr_update_infos[i].size()
-                                      << ", expect: " << edge_attr_op_->MaxSize();
-          } else {
-            edge_attr_op_->UpdateBlock(edge_list_ptr->attr_of_pending_edge(edge),
-                                       items.id_attr_update_infos[i].c_str(),
-                                       edge_attr_op_->MaxSize());
-          }
-        }
-      }
-    }
-    timer.AppendCostMs("batch merge");
-  } else {
-    edge_list_ptr->Add(items.ids,
-                       items.id_weights,
-                       config_.oversize_replace_strategy,
-                       items.id_ts,
-                       items.iewa,
-                       items.id_attr_update_infos,
-                       edge_attr_op_);
-    timer.AppendCostMs("insert add");
-  }
-  SetCheckSumIfNeed(edge_list);
-  timer.AppendCostMs("checksum calc");
+  edge_list_ptr->Add(items.ids, items.id_weights, config_.oversize_replace_strategy, items.id_ts, items.iewa,
+                     items.id_attr_update_infos, edge_attr_op_);
+  timer.AppendCostMs("insert add");
 }
 
 template <typename CPTreapItem>
-bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
-                                         const SamplingParam &param,
+bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list, const SamplingParam &param,
                                          EdgeListSlice *slice) const {
   base::Timer timer;
   auto ptr = reinterpret_cast<const EdgeListType *>(edge_list);
-  if (ptr->meta.size == 0) { return true; }
+  if (ptr->meta.size == 0) {
+    return true;
+  }
   auto origin_size = ptr->meta.size;
 
   EdgeListType *new_ptr = nullptr;
-
+  bool copy_needed = false;
   base::ScopeExit scope_exit([&] {
-    CHECK_NE(ptr, new_ptr);
-    free(new_ptr);
+    if (copy_needed) {
+      CHECK_NE(ptr, new_ptr);
+      free(new_ptr);
+    }
     auto eps = timer.Stop();
     // 2ms
     if (eps > 2000) {
@@ -1151,21 +1170,29 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
                                << ", sample cost: " << timer.display() << ", total cost: " << eps << "us";
     }
   });
-  size_t list_size = GetCoreMemorySize(origin_size);
-  new_ptr = static_cast<EdgeListType *>(malloc(list_size));
-  timer.AppendCostMs("mem alloc");
 
-  // Make a copy for irreversible operations
-  memcpy(new_ptr, ptr, list_size);
-  timer.AppendCostMs("mem copy");
-
-  // checksum validation, no need check in batch update mode
-  if (!new_ptr->BatchMergeEnabled() &&
-      GetCheckSum(edge_list) != CalcCheckSum(reinterpret_cast<char *>(new_ptr))) {
-    LOG_EVERY_N_SEC(WARNING, 10) << "checksum validation failed, the data is corrupt";
-    return false;
+  if (param.strategy() == SamplingParam_SamplingStrategy_EDGE_WEIGHT) {
+    if (param.max_timestamp_s() > 0 || param.min_timestamp_s() > 0 || param.min_weight_required() > 0 ||
+        param.sampling_without_replacement()) {
+      copy_needed = true;
+    }
+  } else if (param.strategy() == SamplingParam_SamplingStrategy_TOPN_WEIGHT && !ptr->IsWeightIndexed()) {
+    if (param.max_timestamp_s() > 0 || param.min_timestamp_s() > 0 || param.min_weight_required() > 0 ||
+        (int)ptr->meta.size - (int)param.sampling_num() > 0) {
+      copy_needed = true;
+    }
   }
-  timer.AppendCostMs("checksum validation");
+
+  if (!copy_needed) {
+    new_ptr = const_cast<EdgeListType *>(ptr);
+  } else {
+    size_t list_size = GetMemorySize(origin_size);
+    new_ptr = static_cast<EdgeListType *>(malloc(list_size));
+    timer.AppendCostMs("mem alloc");
+    // Make a copy for irreversible operations
+    memcpy(new_ptr, ptr, list_size);
+    timer.AppendCostMs("mem copy");
+  }
 
   // Filter by timestamp
   auto max_timestamp_s = 0;
@@ -1196,13 +1223,17 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
   }
 
   if (param.strategy() == SamplingParam_SamplingStrategy_MOST_RECENT) {
-    if (!new_ptr->IsTimeIndexed()) { return false; }
+    if (!new_ptr->IsTimeIndexed()) {
+      return false;
+    }
     // Time complexity: O(X) + O(T) where X is sample_num, T is the number of edges whose timestamp is bigger
     // than max_ts. Worst case: O(N)
     auto offset = new_ptr->meta.time_tail;
     for (size_t i = 0; i < param.sampling_num() && offset != CPTreapItem::invalid_offset;) {
       auto edge = new_ptr->items(offset);
-      if (min_timestamp_s > 0 && edge->timestamp_s() < min_timestamp_s) { return true; }
+      if (min_timestamp_s > 0 && edge->timestamp_s() < min_timestamp_s) {
+        return true;
+      }
       if (max_timestamp_s == 0 || edge->timestamp_s() <= max_timestamp_s) {
         if (new_ptr->weight(edge) >= param.min_weight_required()) {
           std::string edge_attr(new_ptr->attr_of_item(edge), new_ptr->edge_attr_size);
@@ -1217,11 +1248,15 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
   }
 
   if (param.strategy() == SamplingParam_SamplingStrategy_LEAST_RECENT) {
-    if (!new_ptr->IsTimeIndexed()) { return false; }
+    if (!new_ptr->IsTimeIndexed()) {
+      return false;
+    }
     auto offset = new_ptr->meta.time_head;
     for (size_t i = 0; i < param.sampling_num() && offset != CPTreapItem::invalid_offset;) {
       auto edge = new_ptr->items(offset);
-      if (max_timestamp_s > 0 && edge->timestamp_s() > max_timestamp_s) { return true; }
+      if (max_timestamp_s > 0 && edge->timestamp_s() > max_timestamp_s) {
+        return true;
+      }
       if (min_timestamp_s == 0 || edge->timestamp_s() >= min_timestamp_s) {
         if (new_ptr->weight(edge) >= param.min_weight_required()) {
           std::string edge_attr(new_ptr->attr_of_item(edge), new_ptr->edge_attr_size);
@@ -1240,7 +1275,9 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
     thread_local std::vector<int> candidates;
     candidates.reserve(new_ptr->meta.size);
     candidates.clear();
-    for (size_t i = 0; i < new_ptr->meta.size; ++i) { candidates.push_back(i); }
+    for (size_t i = 0; i < new_ptr->meta.size; ++i) {
+      candidates.push_back(i);
+    }
     timer.AppendCostMs("random-sample candidates init cost");
 
     int cand_size = candidates.size();
@@ -1259,7 +1296,9 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
       }
       std::string edge_attr(new_ptr->attr_of_item(node), new_ptr->edge_attr_size);
       slice->Add(node->id(), node->timestamp_s(), new_ptr->weight(node), edge_attr);
-      if (param.sampling_without_replacement()) { std::swap(candidates[idx], candidates[--cand_size]); }
+      if (param.sampling_without_replacement()) {
+        std::swap(candidates[idx], candidates[--cand_size]);
+      }
       ++i;
     }
     timer.AppendCostMs("random-sample sample");
@@ -1326,7 +1365,9 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
         auto offset = new_ptr->meta.time_tail;
         while (offset != CPTreapItem::invalid_offset) {
           auto edge = new_ptr->items(offset);
-          if (edge->timestamp_s() <= max_timestamp_s) { break; }
+          if (edge->timestamp_s() <= max_timestamp_s) {
+            break;
+          }
           bitmap.Set(offset);
           offset = edge->prev_offset();
         }
@@ -1335,7 +1376,9 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
         auto offset = new_ptr->meta.time_head;
         while (offset != CPTreapItem::invalid_offset) {
           auto edge = new_ptr->items(offset);
-          if (edge->timestamp_s() >= min_timestamp_s) { break; }
+          if (edge->timestamp_s() >= min_timestamp_s) {
+            break;
+          }
           bitmap.Set(offset);
           offset = edge->next_offset();
         }
@@ -1346,8 +1389,12 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
       for (size_t i = 0; i < param.sampling_num() && offset != CPTreapItem::invalid_offset;
            offset = edge->weight_prev_offset()) {
         edge = new_ptr->items(offset);
-        if (param.min_weight_required() > 0 && new_ptr->weight(edge) < param.min_weight_required()) { break; }
-        if ((max_timestamp_s > 0 || min_timestamp_s > 0) && bitmap.Get(offset)) { continue; }
+        if (param.min_weight_required() > 0 && new_ptr->weight(edge) < param.min_weight_required()) {
+          break;
+        }
+        if ((max_timestamp_s > 0 || min_timestamp_s > 0) && bitmap.Get(offset)) {
+          continue;
+        }
         std::string edge_attr(new_ptr->attr_of_item(edge), new_ptr->edge_attr_size);
         slice->Add(edge->id(), edge->timestamp_s(), new_ptr->weight(edge), edge_attr);
         i++;
@@ -1402,8 +1449,7 @@ bool CPTreapAdaptor<CPTreapItem>::Sample(const char *edge_list,
 };
 
 template <typename CPTreapItem>
-bool CPTreapAdaptor<CPTreapItem>::GetEdgeListInfo(const char *edge_list,
-                                                  NodeAttr *node_attr,
+bool CPTreapAdaptor<CPTreapItem>::GetEdgeListInfo(const char *edge_list, NodeAttr *node_attr,
                                                   ProtoPtrList<EdgeInfo> *edge_info) const {
   auto edge_list_ptr = reinterpret_cast<const EdgeListType *>(edge_list);
   if (node_attr) {

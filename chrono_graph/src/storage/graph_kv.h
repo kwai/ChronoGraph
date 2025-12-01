@@ -13,6 +13,7 @@
 #include "base/common/file_util.h"
 #include "base/common/logging.h"
 #include "base/jansson/json.h"
+#include "base/thread/rw_mutex_manager.h"
 #include "base/thread/thread_pool.h"
 #include "chrono_graph/src/base/gnn_type.h"
 #include "chrono_graph/src/proto/gnn_kv_service.pb.h"
@@ -142,6 +143,12 @@ class GraphKV {
 
   /**
    * \param info {src_id, relation_name}
+   * \return expire_time is 0 when node not exist.
+   */
+  uint64 GetNodeExpireTime(GraphNode info);
+
+  /**
+   * \param info {src_id, relation_name}
    * \return degree is 0 when node not exist.
    */
   uint64 GetNodeDegree(GraphNode info);
@@ -237,6 +244,7 @@ class GraphKV {
   std::unordered_map<std::string, std::unique_ptr<base::MultiMemKV>> dbs_;
   std::unordered_map<std::string, std::unique_ptr<GraphKvUpdater>> updaters_;
   std::unordered_map<std::string, const GraphStorageDBConfig *> db_configs_;
+  std::unordered_map<std::string, std::unique_ptr<thread::RWMutexManager>> rw_mutex_managers_;
 
   std::unique_ptr<GraphCheckpoint> checkpoint_manager_;
   std::unique_ptr<thread::ThreadPool> detection_thread_pool_;

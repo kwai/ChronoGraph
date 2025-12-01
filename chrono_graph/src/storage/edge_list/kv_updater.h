@@ -84,9 +84,7 @@ class GraphKvUpdater {
     After each Update(), Recycle() is triggered, find expired node and do this function for it.
   */
   void RecycleHandler(uint64 storage_key, base::KVData *cache) const {
-    if (!edge_list_adaptor_->GetExpandMark(cache->data())) {
-      PERF_SUM(1, relation_name_, "expire_key.count");
-    }
+    // do nothing now
   }
 
   uint32 TimeDecayHandler(uint32 addr,

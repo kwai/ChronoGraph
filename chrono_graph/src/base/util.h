@@ -79,7 +79,9 @@ inline uint32 GetTimestampFromDTPath(const std::string &dt_path) {
   absl::Time absl_time;
   try {
     absl::CivilSecond civil_time(std::stoi(YYYY), std::stoi(mm), std::stoi(dd), std::stoi(HH), std::stoi(MM));
-    absl_time = absl::FromCivil(civil_time, absl::LocalTimeZone());
+    absl::TimeZone shanghai_tz;
+    absl::LoadTimeZone("Asia/Shanghai", &shanghai_tz);
+    absl_time = absl::FromCivil(civil_time, shanghai_tz);
   } catch (...) {
     LOG(WARNING) << "stoi failed: " << YYYY << ", " << mm << ", " << dd << ", " << HH << ", " << MM;
     return 0;
